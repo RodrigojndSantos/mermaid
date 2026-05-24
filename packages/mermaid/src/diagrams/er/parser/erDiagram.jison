@@ -50,6 +50,8 @@ accDescr\s*"{"\s*                                { this.begin("acc_descr_multili
 <style>"#"                      return 'BRKT';
 "classDef"                      { this.begin("style"); return 'CLASSDEF'; }
 "class"                         return 'CLASS';
+"subgraph"                      return 'SUBGRAPH';
+"end"\b\s*                      return 'END';
 "one or zero"                   return 'ZERO_OR_ONE';
 "one or more"                   return 'ONE_OR_MORE';
 "one or many"                   return 'ONE_OR_MORE';
@@ -103,12 +105,11 @@ start
 
 document
 	: /* empty */ { $$ = [] }
-	| document line {$1.push($2);$$ = $1}
+	| document line { $$ = $1.concat($2); }
 	;
 
 line
-	: SPACE statement { $$ = $2 }
-	| statement { $$ = $1 }
+	: statement { $$ = $1 }
 	| NEWLINE { $$=[];}
 	| EOF { $$=[];}
 	;
@@ -156,7 +157,7 @@ statement
       }
     | entityName BLOCK_START BLOCK_STOP { yy.addEntity($1); }
     | entityName STYLE_SEPARATOR idList BLOCK_START BLOCK_STOP { yy.addEntity($1); yy.setClass([$1], $3); }
-    | entityName { yy.addEntity($1); }
+    | entityName { yy.addEntity($1); $$ = $1; }
     | entityName STYLE_SEPARATOR idList { yy.addEntity($1); yy.setClass([$1], $3); }
     | entityName SQS entityName SQE BLOCK_START attributes BLOCK_STOP
       {
@@ -178,21 +179,26 @@ statement
     | acc_title acc_title_value  { $$=$2.trim();yy.setAccTitle($$); }
     | acc_descr acc_descr_value  { $$=$2.trim();yy.setAccDescription($$); }
     | acc_descr_multiline_value { $$=$1.trim();yy.setAccDescription($$); }
-    | direction
+    | direction { if (!yy.subgraphDepth) { yy.setDirection($1.value); $$ = []; } else { $$ = $1; } }
     | classDefStatement
     | classStatement
     | styleStatement
+    | subgraphHeader document END { yy.subgraphDepth = (yy.subgraphDepth || 1) - 1; $$ = yy.addSubGraph({ text: $1 }, $2, { text: $1 }); }
+    ;
+
+subgraphHeader
+    : SUBGRAPH entityName separator { yy.subgraphDepth = (yy.subgraphDepth || 0) + 1; $$ = $2; }
     ;
 
 direction
     : direction_tb
-    { yy.setDirection('TB');}
+    { $$ = { stmt: 'dir', value: 'TB' }; }
     | direction_bt
-    { yy.setDirection('BT');}
+    { $$ = { stmt: 'dir', value: 'BT' }; }
     | direction_rl
-    { yy.setDirection('RL');}
+    { $$ = { stmt: 'dir', value: 'RL' }; }
     | direction_lr
-    { yy.setDirection('LR');}
+    { $$ = { stmt: 'dir', value: 'LR' }; }
     ;
 
 classDefStatement
