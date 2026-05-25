@@ -19,9 +19,8 @@ accDescr\s*"{"\s*                                { this.begin("acc_descr_multili
 .*direction\s+BT[^\n]*                       return 'direction_bt';
 .*direction\s+RL[^\n]*                       return 'direction_rl';
 .*direction\s+LR[^\n]*                       return 'direction_lr';
+[ \t\r]+                              /* skip whitespace */
 [\n]+                           return 'NEWLINE';
-\s+                             /* skip whitespace */
-[\s]+                           return 'SPACE';
 \"[^"%\r\n\v\b\\]+\"            return 'ENTITY_NAME';
 \"[^"]*\"                       return 'WORD';
 "erDiagram"                     return 'ER_DIAGRAM';
@@ -121,6 +120,7 @@ statement
           yy.addEntity($1);
           yy.addEntity($3);
           yy.addRelationship($1, $5, $3, $2);
+          $$ = [$1, $3];
       }
     | entityName STYLE_SEPARATOR idList relSpec entityName STYLE_SEPARATOR idList COLON role
       {
@@ -129,6 +129,7 @@ statement
           yy.addRelationship($1, $9, $5, $4);
           yy.setClass([$1], $3);
           yy.setClass([$5], $7);
+          $$ = [$1, $5];
       }
     | entityName STYLE_SEPARATOR idList relSpec entityName COLON role
       {
@@ -136,6 +137,7 @@ statement
           yy.addEntity($5);
           yy.addRelationship($1, $7, $5, $4);
           yy.setClass([$1], $3);
+          $$ = [$1, $5];
       }
     | entityName relSpec entityName STYLE_SEPARATOR idList COLON role
       {
@@ -143,36 +145,40 @@ statement
           yy.addEntity($3);
           yy.addRelationship($1, $7, $3, $2);
           yy.setClass([$3], $5);
+          $$ = [$1, $3];
       }
     | entityName BLOCK_START attributes BLOCK_STOP
       {
           yy.addEntity($1);
           yy.addAttributes($1, $3);
+          $$ = [$1];
       }
     | entityName STYLE_SEPARATOR idList BLOCK_START attributes BLOCK_STOP
       {
           yy.addEntity($1);
           yy.addAttributes($1, $5);
           yy.setClass([$1], $3);
+          $$ = [$1];
       }
-    | entityName BLOCK_START BLOCK_STOP { yy.addEntity($1); }
-    | entityName STYLE_SEPARATOR idList BLOCK_START BLOCK_STOP { yy.addEntity($1); yy.setClass([$1], $3); }
-    | entityName { yy.addEntity($1); $$ = $1; }
-    | entityName STYLE_SEPARATOR idList { yy.addEntity($1); yy.setClass([$1], $3); }
+    | entityName BLOCK_START BLOCK_STOP { yy.addEntity($1); $$ = [$1]; }
+    | entityName STYLE_SEPARATOR idList BLOCK_START BLOCK_STOP { yy.addEntity($1); yy.setClass([$1], $3); $$ = [$1]; }
+    | entityName { yy.addEntity($1); $$ = [$1]; }
+    | entityName STYLE_SEPARATOR idList { yy.addEntity($1); yy.setClass([$1], $3); $$ = [$1]; }
     | entityName SQS entityName SQE BLOCK_START attributes BLOCK_STOP
       {
           yy.addEntity($1, $3);
           yy.addAttributes($1, $6);
+          $$ = [$1];
       }
     | entityName SQS entityName SQE STYLE_SEPARATOR idList BLOCK_START attributes BLOCK_STOP
       {
           yy.addEntity($1, $3);
           yy.addAttributes($1, $8);
           yy.setClass([$1], $6);
-
+          $$ = [$1];
       }
-    | entityName SQS entityName SQE BLOCK_START BLOCK_STOP { yy.addEntity($1, $3); }
-    | entityName SQS entityName SQE STYLE_SEPARATOR idList BLOCK_START BLOCK_STOP { yy.addEntity($1, $3); yy.setClass([$1], $6); }
+    | entityName SQS entityName SQE BLOCK_START BLOCK_STOP { yy.addEntity($1, $3); $$ = [$1]; }
+    | entityName SQS entityName SQE STYLE_SEPARATOR idList BLOCK_START BLOCK_STOP { yy.addEntity($1, $3); yy.setClass([$1], $6); $$ = [$1]; }
     | entityName SQS entityName SQE { yy.addEntity($1, $3); }
     | entityName SQS entityName SQE STYLE_SEPARATOR idList { yy.addEntity($1, $3); yy.setClass([$1], $6); }
     | title title_value  { $$=$2.trim();yy.setAccTitle($$); }
@@ -183,11 +189,26 @@ statement
     | classDefStatement
     | classStatement
     | styleStatement
-    | subgraphHeader document END { yy.subgraphDepth = (yy.subgraphDepth || 1) - 1; $$ = yy.addSubGraph({ text: $1 }, $2, { text: $1 }); }
+    | subgraphHeader document END { yy.subgraphDepth = (yy.subgraphDepth || 1) - 1; $$ = yy.addSubGraph({ text: $1.id }, $2, { text: $1.text }); }
     ;
 
 subgraphHeader
-    : SUBGRAPH entityName separator { yy.subgraphDepth = (yy.subgraphDepth || 0) + 1; $$ = $2; }
+    : SUBGRAPH entityName separator
+      {
+        yy.subgraphDepth = (yy.subgraphDepth || 0) + 1;
+        $$ = { id: $2, text: $2 };
+      }
+
+    | SUBGRAPH entityName SQS subgraphTitle SQE separator
+      {
+        yy.subgraphDepth = (yy.subgraphDepth || 0) + 1;
+        $$ = { id: $2, text: $4 };
+      }
+    ;
+
+subgraphTitle
+    : entityName               { $$ = $1; }
+    | subgraphTitle entityName { $$ = $1 + " " + $2; }
     ;
 
 direction

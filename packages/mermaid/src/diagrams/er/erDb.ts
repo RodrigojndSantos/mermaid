@@ -20,10 +20,10 @@ export class ErDB implements DiagramDB {
   private entities = new Map<string, EntityNode>();
   private relationships: Relationship[] = [];
   private classes = new Map<string, EntityClass>();
+  public subgraphDepth = 0;
   private subGraphs: ErSubGraph[] = [];
   private subGraphLookup = new Map<string, ErSubGraph>();
   private subCount = 0;
-  private subgraphDepth = 0;
   private config = getConfig();
   private direction = 'TB';
 
