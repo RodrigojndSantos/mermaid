@@ -289,7 +289,7 @@ export class ErDB implements DiagramDB {
 
     log.info('Adding', subGraph.id, subGraph.nodes, subGraph.dir);
 
-    // Remove the members in the new subgraph if they already belong to another subgraph
+    // Ensure nodes are unique across subgraphs by removing duplicates from the new subgraph
     subGraph.nodes = this.makeUniq(subGraph, this.subGraphs).nodes;
     this.subGraphs.push(subGraph);
     this.subGraphLookup.set(id, subGraph);
@@ -322,24 +322,28 @@ export class ErDB implements DiagramDB {
     }
   }
 
-  // Todo optimizer this by caching existing nodes
-  public exists(allSubgraphs: ErSubGraph[], _id: string) {
+  /**
+   * Build a quick lookup for all node IDs already assigned to existing subgraphs.
+   */
+  private subgraphNodeCache(allSubgraphs: ErSubGraph[]) {
+    const nodeCache = new Set<string>();
     for (const subGraph of allSubgraphs) {
-      if (subGraph.nodes.includes(_id)) {
-        return true;
+      for (const id of subGraph.nodes) {
+        nodeCache.add(id);
       }
     }
-    return false;
+    return nodeCache;
   }
 
   /**
-   * Deletes an id from all subgraphs
-   *
+   * Filter out nodes that are already part of another subgraph,
+   * keeping subgraph membership unique.
    */
   public makeUniq(subGraph: ErSubGraph, allSubgraphs: ErSubGraph[]) {
+    const existingNodes = this.subgraphNodeCache(allSubgraphs);
     const res: string[] = [];
     subGraph.nodes.forEach((_id, pos) => {
-      if (!this.exists(allSubgraphs, _id)) {
+      if (!existingNodes.has(_id)) {
         res.push(subGraph.nodes[pos]);
       }
     });
@@ -392,7 +396,7 @@ export class ErDB implements DiagramDB {
       }
     }
 
-    // Data is setup, add the nodes
+    // Add the nodes
     for (let i = subGraphs.length - 1; i >= 0; i--) {
       const subGraph = subGraphs[i];
       nodes.push({

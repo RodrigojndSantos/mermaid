@@ -45,6 +45,17 @@ describe('when parsing ER subgraphs', function () {
     expect(subgraph.id).toBe('id');
   });
 
+  it('should handle special characters in subgraph title', function () {
+    erDiagram.parser.parse('erDiagram\nsubgraph "Group 1.5"\nA\nend');
+    const subgraphs = erDiagram.parser.yy.getSubGraphs();
+    expect(subgraphs.length).toBe(1);
+    const subgraph = subgraphs[0];
+
+    expect(subgraph.nodes.length).toBe(1);
+    expect(subgraph.title).toBe('Group 1.5');
+    expect(subgraph.id).toBe('Group 1.5');
+  });
+
   it('should handle empty lines inside subgraph', function () {
     erDiagram.parser.parse('erDiagram\nsubgraph Group\n\nA\n\nB\n\nend');
     const subgraphs = erDiagram.parser.yy.getSubGraphs();
@@ -68,18 +79,6 @@ describe('when parsing ER subgraphs', function () {
     expect(subgraph.nodes[0]).toBe('A');
     expect(subgraph.title).toBe('Group');
     expect(subgraph.id).toBe('Group');
-  });
-
-  it('should handle special characters in subgraph title', function () {
-    erDiagram.parser.parse('erDiagram\nsubgraph "Group 1.5"\nA\nend');
-    const subgraphs = erDiagram.parser.yy.getSubGraphs();
-    expect(subgraphs.length).toBe(1);
-    const subgraph = subgraphs[0];
-
-    expect(subgraph.nodes.length).toBe(1);
-    expect(subgraph.nodes[0]).toBe('A');
-    expect(subgraph.title).toBe('Group 1.5');
-    expect(subgraph.id).toBe('Group 1.5');
   });
 
   it('should handle empty subgraph', function () {
